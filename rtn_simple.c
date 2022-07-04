@@ -11,7 +11,7 @@
 
 */
 
-double* rtn_test(double *t, double dt, const double *tc, int impact, int coeff_1){
+double* rtn_calc(double *t, double dt, const double *tc, int impact, int coeff_1){
 	double tau_local;
 	double *trap_state, *x_return;
 	double avg = 0.0;
@@ -53,23 +53,18 @@ double* rtn_test(double *t, double dt, const double *tc, int impact, int coeff_1
 		x_return[i] = x_return[i] - (avg/(coeff_1/dt));
 	}
 
-	for (int i = 0; i <= (coeff_1/dt); i++){
-		printf("%lf\n", x_return[i]);
-	}
-
-	printf("\n\n%lf", avg);
-
 	return x_return;
 }
 
 int main (){
 	double dt, t_aux, tau_aux;
-	double *t, *tau, *Rx;
+	double *t, *tau, *Rx, *x_new;
 	int coeff_1 = 1000;
 	int coeff_2 = 400;
 	int MC = 100;
 	int impact = 1;
 	double tc[2] = {0.1, 1};
+	double avg, pin, P = 0.0;
 	dt = 0.001;
 
 	t = (double*)malloc((coeff_1/dt) * sizeof(double));
@@ -88,17 +83,34 @@ int main (){
 		tau_aux += dt;
 	}
 
-	/*
-	for (int i = 0; i <= (coeff_2/dt); i++){
-		printf("%lf\n", tau[i]);
-	}*/
+	
+	for (int i = 0; i <= MC; i++){
+		x_new = rtn_calc(t, dt, tc, impact, coeff_1);
+		avg = 0.0;
+		for (int j = 0; j <= (coeff_1/dt); j++){
+			avg += (dt*x_new[j]);
+		}
+
+		for (int j = 0; j <= (coeff_1/dt); j++){
+			x_new[j] = x_new[j] - (avg/1000);
+		}
+		pin = 0.0;
+
+		for (int j = 0; j <= (coeff_1/dt); j++){
+			pin += dt*(pow(x_new[j], 2));
+		}
+		P += pin/1000;
+
+		for (int j = 0; j <= (coeff_2/dt); j++){
+			Rx[j] = x_new[(int)((coeff_1/dt)+1)/2] * x_new[(int)((coeff_1/dt)+1)/2 - (int)(((coeff_2/dt)+1)/2)+j] + Rx[j];
+		}
+	}
 
 
-	//printf("%lf\n", t[10]);
-	double *save_variable;
-	save_variable = rtn_test(t, dt, tc, impact, coeff_1);
 	free(t);
 	free(tau);
+	free(Rx);
+	free(x_new);
 
 
 	return 0;
