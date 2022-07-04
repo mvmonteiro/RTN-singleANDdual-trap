@@ -11,23 +11,23 @@
 
 */
 
-double rtn_test(double *t, double dt, const double *tc, int impact, int coeff_1){
+double* rtn_test(double *t, double dt, const double *tc, int impact, int coeff_1){
 	double tau_local;
-	double *trap_state;
-	
+	double *trap_state, *x_return;
+	double avg = 0.0;
 	srand(time(0));
 	tau_local = pow(((1/ tc[1]) + (1/ tc[0])), -1);
 	trap_state = (double*)malloc((coeff_1/dt)*sizeof(double));
+	x_return = (double*)malloc((coeff_1/dt)*sizeof(double));
 
 	for (int i = 0; i <= (coeff_1/dt); i++){
 		trap_state[i] = round((float)rand() /RAND_MAX);
 	}
 
-
 	for (int i = 1; i <= (coeff_1/dt); i++){
 		if(trap_state[i-1]){
 			if(((float)rand() /RAND_MAX >= ((1-exp(-dt/tau_local))*(tc[1]/tc[1]+tc[0])))){
-				trap_state[i] = 1;	
+				trap_state[i] = 1;
 			} else
 				trap_state[i] = 0;
 		} else if(!trap_state[i-1]){
@@ -38,9 +38,28 @@ double rtn_test(double *t, double dt, const double *tc, int impact, int coeff_1)
 		}
 
 	}
-	//printf("%f", round((float)rand() /RAND_MAX));
+	
+	for (int i = 0; i <= (coeff_1/dt); i++){
+		if((int)trap_state[i] == 1){
+			x_return[i] = (double)impact/2;
+		}
+		else if((int)trap_state[i] == 0){
+			x_return[i] = -(double)impact/2;
+		}
+		avg = avg + x_return[i];
+	}
 
-	return tau_local;
+	for (int i = 0; i <= (coeff_1/dt); i++){
+		x_return[i] = x_return[i] - (avg/(coeff_1/dt));
+	}
+
+	for (int i = 0; i <= (coeff_1/dt); i++){
+		printf("%lf\n", x_return[i]);
+	}
+
+	printf("\n\n%lf", avg);
+
+	return x_return;
 }
 
 int main (){
@@ -76,8 +95,8 @@ int main (){
 
 
 	//printf("%lf\n", t[10]);
-	double save_variable;
-	save_variable = rtn_test(t, dt, tc, impact);
+	double *save_variable;
+	save_variable = rtn_test(t, dt, tc, impact, coeff_1);
 	free(t);
 	free(tau);
 
