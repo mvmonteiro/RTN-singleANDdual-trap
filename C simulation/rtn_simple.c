@@ -11,6 +11,7 @@
 
 */
 
+
 double* rtn_calc(double *t, double dt, const double *tc, int impact, int coeff_1){
 	double tau_local;
 	double *trap_state, *x_return;
