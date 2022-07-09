@@ -11,6 +11,8 @@
 
 */
 
+
+
 double* rtn_calc(double *t, double dt, const double *tc, int impact, int coeff_1){
 	double tau_local;
 	double *trap_state, *x_return;
@@ -105,6 +107,11 @@ int main (){
 			Rx[j] = x_new[(int)((coeff_1/dt)+1)/2] * x_new[(int)((coeff_1/dt)+1)/2 - (int)(((coeff_2/dt)+1)/2)+j] + Rx[j];
 		}
 	}
+
+	// verificar com o valduga o que seria essa característica apresentada em P/MC
+	double state = P/MC;
+
+	
 
 
 	free(t);
