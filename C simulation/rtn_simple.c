@@ -21,9 +21,9 @@
 #define DT 0.001
 
 // função para receber os valores a partir do usuário
-static void start_rtn (int argc, char **argv, int *coeff_1, int *coeff_2, int *mc, int *impact, int *dt, char **path) {
+static void start_rtn (int argc, char **argv, int *coeff_1, int *coeff_2, int *mc, int *impact, double *dt) {
 
-	const char *opt = "b:d:p:f:c:"; // definição das flag
+	const char *opt = "c:f:m:i:d:"; // definição das flag
 	int c; // ver o caso da flag que foi modificada e entrar no switch
 
 // Inicialização dos valores padrões quando não modificado os parâmetros
@@ -36,9 +36,22 @@ static void start_rtn (int argc, char **argv, int *coeff_1, int *coeff_2, int *m
 // controle dos parâmetros advindo do terminal
 	while ((c = getopt (argc, argv, opt)) != EOF) {
 		switch (c) {
-			case 'b':
-				printf(".");
-		}
+			case 'c':
+				sscanf(optarg, "%d", coeff_1);
+				break;
+			case 'f':
+				sscanf(optarg, "%d", coeff_2);
+				break;
+			case 'm':
+				sscanf(optarg, "%d", mc);
+				break;
+			case 'i':
+				sscanf(optarg, "%d", impact);
+				break;
+			case 'd':
+				sscanf(optarg, "%lf", dt);
+				break;
+		};
 	}
 }
 
