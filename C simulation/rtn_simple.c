@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
+#include <unistd.h>
+#include <getopt.h>
 
 /*
 	ALGUMAS CARACTERÍSTICAS PARA COMPILAÇÃO
@@ -11,6 +13,47 @@
 
 */
 
+// define de alguns parâmetros padrões para quando o usuário não os define
+#define COEFF_1 1000
+#define COEFF_2 400
+#define MC 100
+#define IMPACT 1
+#define DT 0.001
+
+// função para receber os valores a partir do usuário
+static void start_rtn (int argc, char **argv, int *coeff_1, int *coeff_2, int *mc, int *impact, double *dt) {
+
+	const char *opt = "c:f:m:i:d:"; // definição das flag
+	int c; // ver o caso da flag que foi modificada e entrar no switch
+
+// Inicialização dos valores padrões quando não modificado os parâmetros
+	*coeff_1 = COEFF_1;
+	*coeff_2 = COEFF_2;
+	*mc = MC;
+	*impact = IMPACT;
+	*dt = DT;
+
+// controle dos parâmetros advindo do terminal
+	while ((c = getopt (argc, argv, opt)) != EOF) {
+		switch (c) {
+			case 'c':
+				sscanf(optarg, "%d", coeff_1);
+				break;
+			case 'f':
+				sscanf(optarg, "%d", coeff_2);
+				break;
+			case 'm':
+				sscanf(optarg, "%d", mc);
+				break;
+			case 'i':
+				sscanf(optarg, "%d", impact);
+				break;
+			case 'd':
+				sscanf(optarg, "%lf", dt);
+				break;
+		};
+	}
+}
 
 double* rtn_calc(double *t, double dt, const double *tc, int impact, int coeff_1){
 	double tau_local;
@@ -60,13 +103,13 @@ double* rtn_calc(double *t, double dt, const double *tc, int impact, int coeff_1
 int main (){
 	double dt, t_aux, tau_aux;
 	double *t, *tau, *Rx, *x_new;
-	int coeff_1 = 1000;
-	int coeff_2 = 400;
-	int MC = 100;
-	int impact = 1;
+	int coeff_1 = COEFF_1;
+	int coeff_2 = COEFF_2;
+	int mc = MC;
+	int impact = IMPACT;
 	double tc[2] = {0.1, 1};
 	double avg, pin, P = 0.0;
-	dt = 0.001;
+	dt = DT;
 
 	t = (double*)malloc((coeff_1/dt) * sizeof(double));
 	tau = (double*)malloc((coeff_2/dt)*sizeof(double));
@@ -93,14 +136,14 @@ int main (){
 		}
 
 		for (int j = 0; j <= (coeff_1/dt); j++){
-			x_new[j] = x_new[j] - (avg/1000);
+			x_new[j] = x_new[j] - (avg/1000); // mudar para length t
 		}
 		pin = 0.0;
 
 		for (int j = 0; j <= (coeff_1/dt); j++){
 			pin += dt*(pow(x_new[j], 2));
 		}
-		P += pin/1000;
+		P += pin/1000; // aqui também
 
 		for (int j = 0; j <= (coeff_2/dt); j++){
 			Rx[j] = x_new[(int)((coeff_1/dt)+1)/2] * x_new[(int)((coeff_1/dt)+1)/2 - (int)(((coeff_2/dt)+1)/2)+j] + Rx[j];
