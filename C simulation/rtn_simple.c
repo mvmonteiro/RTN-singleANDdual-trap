@@ -12,7 +12,7 @@
 /*
 	COMPILATION METHOD
 
-	- gcc rtn_simple.c -o test -lm -std=c99 -lfftw3l
+	- gcc rtn_simple.c -o rtn -lm -std=c99 -lfftw3l
 	dessa forma, o compilador consegue entender o que significa a função round()
 	e ter acesso a library de fft fftw3
 
@@ -21,7 +21,7 @@
 // define de alguns parâmetros padrões para quando o usuário não os define
 #define COEFF_1 1000	// time lenght 1 by 1 (case t = -500 to 500 we have coeff_1 = 1000)
 #define COEFF_2 400		// tau lenght 1 by 1 (case t = -200 to 200 we have coeff_2 = 400)
-#define MC 5			// Monte Carlo
+#define MC 100			// Monte Carlo
 #define IMPACT 1		// impact value
 #define DT 0.001		// step
 
@@ -117,7 +117,7 @@ double* rtn_calc(double *t, double dt, const double *tc, int impact, int coeff_1
 }
 
 int main (){
-	double dt, t_aux, tau_aux;
+	double dt = DT, t_aux, tau_aux;
 	double *t, *tau, *Rx, *x_new;
 	int coeff_1 = COEFF_1;
 	int coeff_2 = COEFF_2;
@@ -125,11 +125,11 @@ int main (){
 	int impact = IMPACT;
 	double tc[2] = {0.1, 1};
 	double avg, pin, P = 0.0;
-	dt = DT;
 	FILE *file_data;
 	double lengthT = (coeff_1/dt), lengthTau = (coeff_2/dt);
 	long double _Complex *absolut;
 	long double *freq;
+	int aux;
 
 	// fft var
     fftwl_complex *in_fft;      // input array - equivalent to double x[n][2]
@@ -146,7 +146,6 @@ int main (){
 	absolut = (long double _Complex*)malloc(((lengthTau)+1)*sizeof(long double _Complex));
 	t_aux = -(coeff_1/2);
 	tau_aux = -(coeff_2/2);
-
 
 	// time definition
 	for (int i = 0; i <= (lengthT); i++){
@@ -188,6 +187,7 @@ int main (){
 		for (int j = 0; j <= (lengthTau); j++){
 			Rx[j] = x_new[(int)(((lengthT)+1)/2)+1] * x_new[(int)(((lengthT)+1)/2 - (int)(((lengthTau)+1)/2))+j+1] + Rx[j];
 		}
+			
 	}
 
 	// P calc and print
@@ -231,10 +231,9 @@ int main (){
 	}
 
 	// frequency definition
-	for(int i=1; i<=lengthTau; i++){		// i começar no 1
-		freq[i-1] = 1/-(coeff_2/2) + (i/(dt)); // 1 / 2*i/dt
-		//printf("\n f = %Le\n", freq[0]);
-	}
+	for (int i=0; i <= (lengthTau/2); i++) { 
+		freq[i]=i/(2*dt); 
+	} 
 
 	// the plot of this abs(signal) is made usying python tools, so the code writes the abs data and its frequency in a txt file
 	// printing the data into a file
@@ -245,7 +244,7 @@ int main (){
 	else
      	printf("\n\nO arquivo foi aberto com sucesso!\n");
 
-	fprintf(file_data, "frequency,power");		// first line of the two coloms: freq x power
+	fprintf(file_data, "frequency,power\n");		// first line of the two coloms: freq x power
 	for(int i = 0; i <= lengthTau; i++){
 		fprintf(file_data, "%Le,%Le\n", freq[i], creall(absolut[i]));
 	}
