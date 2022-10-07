@@ -22,8 +22,8 @@
 #define COEFF_1 100000	// time lenght 1 by 1 (case t = -500 to 500 we have coeff_1 = 1000)
 #define COEFF_2 400		// tau lenght 1 by 1 (case t = -200 to 200 we have coeff_2 = 400)
 #define MC 100			// Monte Carlo
-#define IMPACT 1		// impact value
-#define DT 0.1		// step
+#define IMPACT 0.005	// impact value
+#define DT 0.1			// step
 #define TC0 0.001
 
 // complex number definition
@@ -32,7 +32,7 @@
 
 
 // função para receber os valores a partir do usuário
-static void start_rtn (int argc, char **argv, int *coeff_1, int *coeff_2, int *mc, int *impact, double *dt, double *tc0) {
+static void start_rtn (int argc, char **argv, int *coeff_1, int *coeff_2, int *mc, double *impact, double *dt, double *tc0) {
 
 	const char *opt = "c:f:m:i:d:t:"; // definição das flag
 	int c; // ver o caso da flag que foi modificada e entrar no switch
@@ -58,7 +58,7 @@ static void start_rtn (int argc, char **argv, int *coeff_1, int *coeff_2, int *m
 				sscanf(optarg, "%d", mc);
 				break;
 			case 'i':
-				sscanf(optarg, "%d", impact);
+				sscanf(optarg, "%lf", impact);
 				break;
 			case 'd':
 				sscanf(optarg, "%lf", dt);
@@ -70,7 +70,7 @@ static void start_rtn (int argc, char **argv, int *coeff_1, int *coeff_2, int *m
 	}
 }
 
-double* rtn_calc(double *t, double dt, const double *tc, int impact, int coeff_1){
+double* rtn_calc(double *t, double dt, const double *tc, double impact, int coeff_1){
 	// The time constants (tc) are [avg_time_in_high avg_time_in_low]
 	
 	double tau_local;
@@ -123,12 +123,11 @@ double* rtn_calc(double *t, double dt, const double *tc, int impact, int coeff_1
 
 int main (int argc, char **argv){
 
-	double dt, t_aux, tau_aux;
+	double dt, impact = IMPACT, t_aux, tau_aux;
 	double *t, *tau, *Rx, *x_new;
 	int coeff_1 = COEFF_1;
 	int coeff_2 = COEFF_2;
 	int mc = MC;
-	int impact = IMPACT;
 	double tc0 = TC0;
 	double tc[2] = {tc0, 1};
 	double avg, pin, P = 0.0;
@@ -174,7 +173,7 @@ int main (int argc, char **argv){
 			tau_aux += dt;
 		}
 
-	tc[0] = tc[0] + 0.1;    // add the step for the new simulation
+	tc[0] = 1;    // add the step for the new simulation
 	while(t[0] < 1000.00){  // while with the max range of tc[0]
 
 		// file with the last t[0] value - used by argument in the script.sh
@@ -203,7 +202,7 @@ int main (int argc, char **argv){
 			
 			avg = 0.0;
 			for (int j = 0; j <= (lengthT); j++){
-				avg += (0.001*x_new[j]);		//dt
+				avg += (dt*x_new[j]);		//dt
 			}
 
 			for (int j = 0; j <= (lengthT); j++){
@@ -213,9 +212,9 @@ int main (int argc, char **argv){
 			pin = 0.0;
 
 			for (int j = 0; j <= (lengthT); j++){
-				pin += 0.001*(pow(x_new[j], 2));		//dt
+				pin += dt*(pow(x_new[j], 2));		//dt
 			}
-			P += pin/(lengthT);
+			P += pin/(coeff_1);
 			
 			for (int j = 0; j <= (lengthTau); j++){
 				Rx[j] = x_new[(int)(((lengthT)+1)/2)+1] * x_new[(int)(((lengthT)+1)/2 - (int)(((lengthTau)+1)/2))+j+1] + Rx[j];
