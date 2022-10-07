@@ -22,7 +22,7 @@
 #define COEFF_1 1000	// time lenght 1 by 1 (case t = -500 to 500 we have coeff_1 = 1000)
 #define COEFF_2 400		// tau lenght 1 by 1 (case t = -200 to 200 we have coeff_2 = 400)
 #define MC 100			// Monte Carlo
-#define IMPACT 1		// impact value
+#define IMPACT 0.005	// impact value
 #define DT 0.001		// step
 
 // complex number definition
@@ -31,7 +31,7 @@
 
 
 // função para receber os valores a partir do usuário
-static void start_rtn (int argc, char **argv, int *coeff_1, int *coeff_2, int *mc, int *impact, double *dt) {
+static void start_rtn (int argc, char **argv, int *coeff_1, int *coeff_2, int *mc, double *impact, double *dt) {
 
 	const char *opt = "c:f:m:i:d:"; // definição das flag
 	int c; // ver o caso da flag que foi modificada e entrar no switch
@@ -56,7 +56,7 @@ static void start_rtn (int argc, char **argv, int *coeff_1, int *coeff_2, int *m
 				sscanf(optarg, "%d", mc);
 				break;
 			case 'i':
-				sscanf(optarg, "%d", impact);
+				sscanf(optarg, "%lf", impact);
 				break;
 			case 'd':
 				sscanf(optarg, "%lf", dt);
@@ -65,7 +65,7 @@ static void start_rtn (int argc, char **argv, int *coeff_1, int *coeff_2, int *m
 	}
 }
 
-double* rtn_calc(double *t, double dt, const double *tc, int impact, int coeff_1){
+double* rtn_calc(double *t, double dt, const double *tc, double impact, int coeff_1){
 	// The time constants (tc) are [avg_time_in_high avg_time_in_low]
 	
 	double tau_local;
@@ -117,33 +117,31 @@ double* rtn_calc(double *t, double dt, const double *tc, int impact, int coeff_1
 }
 
 int main (){
-	double dt = DT, t_aux, tau_aux;
+	double dt = DT, impact = IMPACT, t_aux, tau_aux;
 	double *t, *tau, *Rx, *x_new;
 	int coeff_1 = COEFF_1;
 	int coeff_2 = COEFF_2;
 	int mc = MC;
-	int impact = IMPACT;
-	double tc[2] = {0.1, 1};
+	double tc[2] = {1, 1};
 	double avg, pin, P = 0.0;
 	FILE *file_data;
 	double lengthT = (coeff_1/dt), lengthTau = (coeff_2/dt);
-	long double _Complex *absolut;
-	long double *freq;
+	long double *freq, *abs;
 	int aux;
 
 	// fft var
     fftwl_complex *in_fft;      // input array - equivalent to double x[n][2]
     fftwl_complex *out_fft;     // output array - equivalent to double x[n][2]
     fftwl_plan plan;        	// fft plant declaration
-	double pi = 3.14159265359;	// pi definition
 	fftwl_complex *ssd;			// spectral density var
 
 	// memmory allocation
-	t = (double*)malloc(((lengthT)+1) * sizeof(double));
-	tau = (double*)malloc(((lengthTau)+1)*sizeof(double));
-	Rx = (double*)malloc(((lengthTau)+1)*sizeof(double));
-	freq = (long double*)malloc(((lengthTau)+1)*sizeof(long double));
-	absolut = (long double _Complex*)malloc(((lengthTau)+1)*sizeof(long double _Complex));
+	t = (double* )malloc(((lengthT)+1) *sizeof(double));
+	tau = (double* )malloc(((lengthTau)+1) *sizeof(double));
+	Rx = (double* )malloc(((lengthTau)+1) *sizeof(double));
+	freq = (long double* )malloc(((lengthTau)+1) *sizeof(long double));
+	abs = (long double* )malloc(((lengthTau/2)+1) *sizeof(long double));
+	x_new = (double* )malloc(((lengthT)+1) *sizeof(double));
 	t_aux = -(coeff_1/2);
 	tau_aux = -(coeff_2/2);
 
@@ -164,6 +162,10 @@ int main (){
 		Rx[i] = 0.0;
 	}
 
+	/*for (int i = 0; i <= lengthT; i++){
+		x_new[i] = i;
+	}*/
+
 	// power and Rx function
 	for (int i = 0; i < MC; i++){
 		x_new = rtn_calc(t, dt, tc, impact, coeff_1);
@@ -182,16 +184,16 @@ int main (){
 		for (int j = 0; j <= (lengthT); j++){
 			pin += dt*(pow(x_new[j], 2));
 		}
-		P += pin/(lengthT);
+		P += pin/(coeff_1);
 
 		for (int j = 0; j <= (lengthTau); j++){
-			Rx[j] = x_new[(int)(((lengthT)+1)/2)+1] * x_new[(int)(((lengthT)+1)/2 - (int)(((lengthTau)+1)/2))+j+1] + Rx[j];
+			Rx[j] = x_new[(int)(((lengthT)+1)/2)+1] * x_new[(int)(((((lengthT)+1)/2)+1) - (int)(((((lengthTau)+1)/2))+1))+j+1] + Rx[j];
 		}
 			
 	}
 
 	// P calc and print
-	printf("P = %le", P/MC);
+	printf("P = %le", P/mc);
 
     // memmory allocation for fft
     in_fft = (fftwl_complex*) fftwl_malloc(sizeof(fftwl_complex) * (lengthTau+1));
@@ -207,7 +209,6 @@ int main (){
         in_fft[i][IMAG] = 0;
     }
 
-
     // initial array print
     /*printf("\n");
     printf("\n   Input FFT coefficients: \n");
@@ -219,34 +220,57 @@ int main (){
     fftwl_execute(plan);
 
 	// SSD definition
+	out_fft[0][IMAG] = 0.0; 				// for some reason the fft of the first position of the vector doesn't return a 0 in the imaginary part
 	for(int i=0; i<=(lengthTau); i++){
 		ssd[i][REAL] = out_fft[i][REAL]/(lengthTau+1);
 		ssd[i][IMAG] = out_fft[i][IMAG]/(lengthTau+1);
 	}
 
+	/*printf("\nrx0 = %Le, %Le", ssd[0][REAL], ssd[0][IMAG]);
+	printf("\nrx1 = %Le, %Le", ssd[1][REAL], ssd[1][IMAG]);
+	printf("\nrx2 = %Le, %Le", ssd[2][REAL], ssd[2][IMAG]);
+	printf("\nrx3 = %Le, %Le", ssd[3][REAL], ssd[3][IMAG]);
+	printf("\nrx4 = %Le, %Le", ssd[4][REAL], ssd[4][IMAG]);
+	printf("\nrx5 = %Le, %Le", ssd[5][REAL], ssd[5][IMAG]);
+	printf("\nrx6 = %Le, %Le", ssd[6][REAL], ssd[6][IMAG]);
+	printf("\nrx7 = %Le, %Le", ssd[7][REAL], ssd[7][IMAG]);
+	printf("\nrx8 = %Le, %Le", ssd[8][REAL], ssd[8][IMAG]);
+	printf("\nrx9 = %Le, %Le\n", ssd[9][REAL], ssd[9][IMAG]);*/
+
 	// absolut calc from ssd
-	for(int i = 0; i<=lengthTau; i++){
-		absolut[i] = sqrt(pow(ssd[i][REAL], 2) + (pow((ssd[i][IMAG])*I, 2)));
+	for(int i = 0; i<=lengthTau/2; i++){
+		abs[i] = sqrt(pow(ssd[i][REAL], 2) + pow(ssd[i][IMAG], 2));
 		//printf("\n %d = %Le + %Le i", i, creall(absolut[i]), cimagl(absolut[i]));		// in case the user want to print all the array
 	}
 
+	/*printf("\nrx0 = %Le", abs[0]);
+	printf("\nrx1 = %Le", abs[1]);
+	printf("\nrx2 = %Le", abs[2]);
+	printf("\nrx3 = %Le", abs[3]);
+	printf("\nrx4 = %Le", abs[4]);
+	printf("\nrx5 = %Le", abs[5]);
+	printf("\nrx6 = %Le", abs[6]);
+	printf("\nrx7 = %Le", abs[7]);
+	printf("\nrx8 = %Le", abs[8]);
+	printf("\nrx9 = %Le\n", abs[9]);*/
+
 	// frequency definition
 	for (int i=0; i <= (lengthTau/2); i++) { 
-		freq[i]=i/(2*dt); 
-	} 
+		freq[i]=i/(2*dt*(lengthTau)/2); 
+	}
 
 	// the plot of this abs(signal) is made usying python tools, so the code writes the abs data and its frequency in a txt file
 	// printing the data into a file
   	file_data = fopen("ssd_out.txt", "w");	// create a file with write permission
 
 	if(file_data == NULL)					// is the file working?
-    	printf("\n\nERRO! O arquivo não foi aberto!\n");
+    	printf("\n\nERRO! O arquivo não foi aberto!\n" );
 	else
      	printf("\n\nO arquivo foi aberto com sucesso!\n");
 
 	fprintf(file_data, "frequency,power\n");		// first line of the two coloms: freq x power
-	for(int i = 0; i <= lengthTau; i++){
-		fprintf(file_data, "%Le,%Le\n", freq[i], creall(absolut[i]));
+	for(int i = 0; i <= lengthTau/2; i++){
+		fprintf(file_data, "%Le %Le\n", freq[i], abs[i]);
 	}
 
 	printf("Dados gravados com sucesso!\n");
@@ -258,11 +282,9 @@ int main (){
 	// memmory clean
     fftwl_destroy_plan(plan);
     fftwl_free(in_fft); fftwl_free(out_fft); fftwl_free(ssd);
-	free(t);
-	free(tau);
-	free(Rx);
-	free(x_new);
-	free(absolut);
+	free(t); free(tau);
+	free(Rx); free(x_new);
+	free(freq); free(abs);
 
 	return 0;
 
