@@ -1,6 +1,8 @@
 // author: Marcus V. Monteiro
 
 #include <stdio.h>
+#include <stdint.h>
+#include <string.h>
 #include <fftw3.h>
 #include <math.h>
 #include <stdlib.h>
@@ -21,7 +23,7 @@
 // define de alguns parâmetros padrões para quando o usuário não os define
 #define COEFF_1 1000	// time lenght 1 by 1 (case t = -500 to 500 we have coeff_1 = 1000)
 #define COEFF_2 400		// tau lenght 1 by 1 (case t = -200 to 200 we have coeff_2 = 400)
-#define MC 100			// Monte Carlo
+#define MC 10			// Monte Carlo
 #define IMPACT 0.005	// impact value
 #define DT 0.001		// step
 
@@ -69,14 +71,22 @@ double* rtn_calc(double *t, double dt, const double *tc, double impact, int coef
 	// The time constants (tc) are [avg_time_in_high avg_time_in_low]
 	
 	double tau_local;
-	double *trap_state, *x_return;
+	double *trap_state, *x_return, *z, *k;
 	double avg = 0.0;
-	srand(time(0));
 	tau_local = pow(((1/ tc[1]) + (1/ tc[0])), -1);				// tau definition
+
+	// seed of random numbers based on a file of unix (using time was not so efficient because they repeat in each one second)
+	uint32_t seed=0;
+  	FILE *devrnd = fopen("/dev/random","r");
+  	fread(&seed, 4, 1, devrnd);
+  	fclose(devrnd);
+  	srand(seed);
 
 	// memmory allocation
 	trap_state = (double*)malloc((coeff_1/dt)*sizeof(double));
 	x_return = (double*)malloc((coeff_1/dt)*sizeof(double));
+	z = (double*)malloc((coeff_1/dt)*sizeof(double));
+	k = (double*)malloc((coeff_1/dt)*sizeof(double));
 
 	// inialize the randomic variation of the trap state between 0 or 1
 
@@ -84,14 +94,16 @@ double* rtn_calc(double *t, double dt, const double *tc, double impact, int coef
 		x_return[i] = 0.0;
 	}
 
-	trap_state[0] = round((double)rand() /RAND_MAX);
+	trap_state[0] = (rand() > RAND_MAX / 2);   // 0 false and 1 true
 
 	for (int i = 1; i <= (coeff_1/dt); i++){
 		if(trap_state[i-1] == 1.0){
-			trap_state[i] = ((double)rand() /RAND_MAX >= ((1-exp(-dt/tau_local))*(tc[1]/(tc[1]+tc[0]))));
+			z[i] = ((double)rand() / (double)RAND_MAX);
+			trap_state[i] = ( z[i] >= ((1-exp(-dt/tau_local))*(tc[1]/(tc[1]+tc[0]))));
 		}  
 		else{
-			trap_state[i] = ((double)rand() /RAND_MAX <= ((1-exp(-dt/tau_local))*(tc[0]/(tc[1]+tc[0]))));	
+			k[i] = ((double)rand() / (double)RAND_MAX);
+			trap_state[i] = ( k[i] <= ((1-exp(-dt/tau_local))*(tc[0]/(tc[1]+tc[0]))));	
 		}
 	}
 
@@ -107,11 +119,11 @@ double* rtn_calc(double *t, double dt, const double *tc, double impact, int coef
 		avg = avg + x_return[i];
 	}
 
-
 	for (int i = 0; i <= (coeff_1/dt); i++){
 		x_return[i] = x_return[i] - (avg / ((coeff_1/dt)+1));
 	}
 
+	free(z); free(k); free(trap_state);
 	return x_return;
 
 }
@@ -163,8 +175,8 @@ int main (){
 	}
 
 	/*for (int i = 0; i <= lengthT; i++){
-		x_new[i] = i;
-	}*/
+		x_new[i] = i*0.37;
+	}*/ // TEST
 
 	// power and Rx function
 	for (int i = 0; i < MC; i++){
@@ -226,33 +238,11 @@ int main (){
 		ssd[i][IMAG] = out_fft[i][IMAG]/(lengthTau+1);
 	}
 
-	/*printf("\nrx0 = %Le, %Le", ssd[0][REAL], ssd[0][IMAG]);
-	printf("\nrx1 = %Le, %Le", ssd[1][REAL], ssd[1][IMAG]);
-	printf("\nrx2 = %Le, %Le", ssd[2][REAL], ssd[2][IMAG]);
-	printf("\nrx3 = %Le, %Le", ssd[3][REAL], ssd[3][IMAG]);
-	printf("\nrx4 = %Le, %Le", ssd[4][REAL], ssd[4][IMAG]);
-	printf("\nrx5 = %Le, %Le", ssd[5][REAL], ssd[5][IMAG]);
-	printf("\nrx6 = %Le, %Le", ssd[6][REAL], ssd[6][IMAG]);
-	printf("\nrx7 = %Le, %Le", ssd[7][REAL], ssd[7][IMAG]);
-	printf("\nrx8 = %Le, %Le", ssd[8][REAL], ssd[8][IMAG]);
-	printf("\nrx9 = %Le, %Le\n", ssd[9][REAL], ssd[9][IMAG]);*/
-
 	// absolut calc from ssd
 	for(int i = 0; i<=lengthTau/2; i++){
 		abs[i] = sqrt(pow(ssd[i][REAL], 2) + pow(ssd[i][IMAG], 2));
 		//printf("\n %d = %Le + %Le i", i, creall(absolut[i]), cimagl(absolut[i]));		// in case the user want to print all the array
 	}
-
-	/*printf("\nrx0 = %Le", abs[0]);
-	printf("\nrx1 = %Le", abs[1]);
-	printf("\nrx2 = %Le", abs[2]);
-	printf("\nrx3 = %Le", abs[3]);
-	printf("\nrx4 = %Le", abs[4]);
-	printf("\nrx5 = %Le", abs[5]);
-	printf("\nrx6 = %Le", abs[6]);
-	printf("\nrx7 = %Le", abs[7]);
-	printf("\nrx8 = %Le", abs[8]);
-	printf("\nrx9 = %Le\n", abs[9]);*/
 
 	// frequency definition
 	for (int i=0; i <= (lengthTau/2); i++) { 
