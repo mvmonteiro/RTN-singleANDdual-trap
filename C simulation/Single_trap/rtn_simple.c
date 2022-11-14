@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <complex.h>
+#include <time.h>
 
 /*
 	COMPILATION METHOD
@@ -140,6 +141,11 @@ int main (){
 	double lengthT = (coeff_1/dt), lengthTau = (coeff_2/dt);
 	long double *freq, *abs;
 	int aux;
+	clock_t start, end;
+	double execution_time;
+
+	// initial variable that counts the time spend in the program
+	start = clock();
 
 	// fft var
     fftwl_complex *in_fft;      // input array - equivalent to double x[n][2]
@@ -260,7 +266,7 @@ int main (){
 
 	fprintf(file_data, "frequency,power\n");		// first line of the two coloms: freq x power
 	for(int i = 0; i <= lengthTau/2; i++){
-		fprintf(file_data, "%Le,%Le\n", freq[i], abs[i]);
+		fprintf(file_data, "%Le %Le\n", freq[i], abs[i]);
 	}
 
 	printf("Dados gravados com sucesso!\n");
@@ -275,6 +281,10 @@ int main (){
 	free(t); free(tau);
 	free(Rx); free(x_new);
 	free(freq); free(abs);
+
+	end = clock();
+	execution_time = ((double)(end - start))/CLOCKS_PER_SEC;
+	printf("\nTime taken to execute in seconds : %f\n", execution_time);
 
 	return 0;
 
