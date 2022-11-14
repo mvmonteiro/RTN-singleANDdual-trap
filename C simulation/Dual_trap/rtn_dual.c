@@ -14,7 +14,7 @@
 /*
 	COMPILATION METHOD
 
-	- gcc rtn_simple.c -o rtn -lm -std=c99 -lfftw3l
+	- gcc rtn_dual.c -o rtn -lm -std=c99 -lfftw3l
 	dessa forma, o compilador consegue entender o que significa a função round()
 	e ter acesso a library de fft fftw3
 
@@ -23,7 +23,7 @@
 // define de alguns parâmetros padrões para quando o usuário não os define
 #define COEFF_1 1000	// time lenght 1 by 1 (case t = -500 to 500 we have coeff_1 = 1000)
 #define COEFF_2 400		// tau lenght 1 by 1 (case t = -200 to 200 we have coeff_2 = 400)
-#define MC 10			// Monte Carlo
+#define MC 100			// Monte Carlo
 #define IMPACT 0.005	// impact value
 #define DT 0.001		// step
 
@@ -33,7 +33,7 @@
 
 
 // função para receber os valores a partir do usuário
-static void start_rtn (int argc, char **argv, int *coeff_1, int *coeff_2, int *mc, double *impact, double *dt) {
+static void start_rtn (int argc, char **argv, int *coeff_1, int *coeff_2, int *mc, double *dt) {
 
 	const char *opt = "c:f:m:i:d:"; // definição das flag
 	int c; // ver o caso da flag que foi modificada e entrar no switch
@@ -42,7 +42,6 @@ static void start_rtn (int argc, char **argv, int *coeff_1, int *coeff_2, int *m
 	*coeff_1 = COEFF_1;
 	*coeff_2 = COEFF_2;
 	*mc = MC;
-	*impact = IMPACT;
 	*dt = DT;
 
 	// controle dos parâmetros advindo do terminal
@@ -57,9 +56,6 @@ static void start_rtn (int argc, char **argv, int *coeff_1, int *coeff_2, int *m
 			case 'm':
 				sscanf(optarg, "%d", mc);
 				break;
-			case 'i':
-				sscanf(optarg, "%lf", impact);
-				break;
 			case 'd':
 				sscanf(optarg, "%lf", dt);
 				break;
@@ -67,13 +63,14 @@ static void start_rtn (int argc, char **argv, int *coeff_1, int *coeff_2, int *m
 	}
 }
 
-double* rtn_calc(double *t, double dt, const double *tc, double impact, int coeff_1){
+double* rtn_calc(double *t, double dt, const double *tc_T1, const double *tc_T2, double *impact, int coeff_1){
 	// The time constants (tc) are [avg_time_in_high avg_time_in_low]
 	
-	double tau_local;
+	double tau_local_T1, tau_local_T2;
 	double *trap_state_1, *trap_state_2, *x_return, *z, *k;
-	double avg = 0.0;
-	tau_local = pow(((1/ tc[1]) + (1/ tc[0])), -1);				// tau definition
+	double avg = 0.0, aux;
+	tau_local_T1 = pow(((1/ tc_T1[1]) + (1/ tc_T1[0])), -1);				// tau definition
+	tau_local_T2 = pow(((1/ tc_T2[1]) + (1/ tc_T2[0])), -1);
 
 	// seed of random numbers based on a file of unix (using time was not so efficient because they repeat in each one second)
 	uint32_t seed=0;
@@ -112,22 +109,22 @@ double* rtn_calc(double *t, double dt, const double *tc, double impact, int coef
 	for (int i = 1; i <= (coeff_1/dt); i++){
 		if(trap_state_1[i-1] == 1.0){
 			z[i] = ((double)rand() / (double)RAND_MAX);
-			trap_state_1[i] = ( z[i] >= ((1-exp(-dt/tau_local))*(tc[1]/(tc[1]+tc[0]))));
+			trap_state_1[i] = ( z[i] >= ((1-exp(-dt/tau_local_T1))*(tc_T1[1]/(tc_T1[1]+tc_T1[0]))));
 		}  
 		else{
 			k[i] = ((double)rand() / (double)RAND_MAX);
-			trap_state_1[i] = ( k[i] <= ((1-exp(-dt/tau_local))*(tc[0]/(tc[1]+tc[0]))));	
+			trap_state_1[i] = ( k[i] <= ((1-exp(-dt/tau_local_T1))*(tc_T1[0]/(tc_T1[1]+tc_T1[0]))));	
 		}
 	}
 
     	for (int i = 1; i <= (coeff_1/dt); i++){
 		if(trap_state_2[i-1] == 1.0){
 			z[i] = ((double)rand() / (double)RAND_MAX);
-			trap_state_2[i] = ( z[i] >= ((1-exp(-dt/tau_local))*(tc[1]/(tc[1]+tc[0]))));
+			trap_state_2[i] = ( z[i] >= ((1-exp(-dt/tau_local_T2))*(tc_T2[1]/(tc_T2[1]+tc_T2[0]))));
 		}  
 		else{
 			k[i] = ((double)rand() / (double)RAND_MAX);
-			trap_state_2[i] = ( k[i] <= ((1-exp(-dt/tau_local))*(tc[0]/(tc[1]+tc[0]))));	
+			trap_state_2[i] = ( k[i] <= ((1-exp(-dt/tau_local_T2))*(tc_T2[0]/(tc_T2[1]+tc_T2[0]))));	
 		}
 	}
 
@@ -135,16 +132,21 @@ double* rtn_calc(double *t, double dt, const double *tc, double impact, int coef
 
     // impact calculation
 	for (int i = 0; i <= (coeff_1/dt); i++){
-        if (trap_state_1(i) && trap_state_2(i))
-            x_return[i] = impact(3);
-        else if(trap_state_1)
-            x_return[i] = impact(1);
-        else if(trap_state_2)
-            x_return[i] = impact(2);
+        if (trap_state_1[i]==1 && trap_state_2[i]==1)
+            x_return[i] = impact[3];
+        else if(trap_state_1[i])
+            x_return[i] = impact[1];
+        else if(trap_state_2[i])
+            x_return[i] = impact[2];
         else
-            x_return = 0;
+			x_return[i] = impact[0];
+
+        avg = x_return[i] + avg;
 	}
 
+	for (int i = 0; i <= (coeff_1/dt); i++){
+		x_return[i] = x_return[i] - (avg / ((coeff_1/dt)+1));
+	}
 
 	free(z); free(k); free(trap_state_1); free(trap_state_2);
 	return x_return;
@@ -152,13 +154,13 @@ double* rtn_calc(double *t, double dt, const double *tc, double impact, int coef
 }
 
 int main (){
-	double dt = DT, impact = IMPACT, t_aux, tau_aux;
+	double dt = DT, impact[4]={0.0, 1.0, 2.0, 4.0}, t_aux, tau_aux;
 	double *t, *tau, *Rx, *x_new;
 	int coeff_1 = COEFF_1;
 	int coeff_2 = COEFF_2;
 	int mc = MC;
-	double tc[2] = {1, 1};
-	double avg, pin, P = 0.0;
+	double tc_T1[2] = {0.01, 0.01}, tc_T2[2] = {10, 10};
+	double avg, pin, P = 0.0, temp=1.0;
 	FILE *file_data;
 	double lengthT = (coeff_1/dt), lengthTau = (coeff_2/dt);
 	long double *freq, *abs;
@@ -197,13 +199,22 @@ int main (){
 		Rx[i] = 0.0;
 	}
 
+	// impact calculation
+	for (int i=0; i < 21; i++){
+		temp = temp + 0.1;
+	}
+
+	printf("\n %f", temp);
+
+	impact[0] = 0; impact[1] = 1; impact[2] = 2; impact[3] = temp;
+
 	/*for (int i = 0; i <= lengthT; i++){
 		x_new[i] = i*0.37;
 	}*/ // TEST
 
 	// power and Rx function
 	for (int i = 0; i < MC; i++){
-		x_new = rtn_calc(t, dt, tc, impact, coeff_1);
+		x_new = rtn_calc(t, dt, tc_T1, tc_T2, impact, coeff_1);
 
 		avg = 0.0;
 		for (int j = 0; j <= (lengthT); j++){
@@ -274,7 +285,7 @@ int main (){
 
 	// the plot of this abs(signal) is made usying python tools, so the code writes the abs data and its frequency in a txt file
 	// printing the data into a file
-  	file_data = fopen("ssd_out.txt", "w");	// create a file with write permission
+  	file_data = fopen("psd_dual.txt", "w");	// create a file with write permission
 
 	if(file_data == NULL)					// is the file working?
     	printf("\n\nERRO! O arquivo não foi aberto!\n" );
@@ -283,7 +294,7 @@ int main (){
 
 	fprintf(file_data, "frequency,power\n");		// first line of the two coloms: freq x power
 	for(int i = 0; i <= lengthTau/2; i++){
-		fprintf(file_data, "%Le %Le\n", freq[i], abs[i]);
+		fprintf(file_data, "%Le,%Le\n", freq[i], abs[i]);
 	}
 
 	printf("Dados gravados com sucesso!\n");
