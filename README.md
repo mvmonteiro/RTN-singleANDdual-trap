@@ -22,8 +22,8 @@ working simultaneously, enabling the correlated activity of them or not, it depe
 
 ## Execution
 
-Single trap: gcc rtn_simple.c -o rtn -lm -std=c99 -lfftw3l
-Dual trap: gcc rtn_dual.c -o rtn -lm -std=c99 -lfftw3l
+- Single trap: gcc rtn_simple.c -o rtn -lm -std=c99 -lfftw3l
+- Dual trap: gcc rtn_dual.c -o rtn -lm -std=c99 -lfftw3l
 
 **For both simulations you will need the FFT libery for C. You can find all you need about this here: https://www.fftw.org**
 
