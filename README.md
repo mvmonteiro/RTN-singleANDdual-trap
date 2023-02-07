@@ -1,6 +1,6 @@
 # Random telegraph noise trap simulation
 
-This repository has the aim of build a struct that can simulate a single trap behavior. 
+This repository has the aim of build a struct that can simulate a single and a dual trap behavior. 
 
 ## Context
 
@@ -11,3 +11,5 @@ increase the reability on this kind of system by some simulation tests with char
 
 - MATLAB
 - C
+- Python
+- ShellScript
